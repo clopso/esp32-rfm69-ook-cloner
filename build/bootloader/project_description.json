@@ -1,0 +1,21 @@
+{
+    "project_name":       "bootloader",
+    "project_path":       "/home/caiol/esp/esp-idf/components/bootloader/subproject",
+    "build_dir":          "/home/caiol/esp/codes/esp-idf-rf69-main/build/bootloader",
+    "config_file":        "/home/caiol/esp/codes/esp-idf-rf69-main/sdkconfig",
+    "config_defaults":    "",
+    "app_elf":            "bootloader.elf",
+    "app_bin":            "bootloader.bin",
+    "git_revision":       "v4.4.1",
+    "target":             "esp32",
+    "rev":                "0",
+    "phy_data_partition": "",
+    "monitor_baud" :      "115200",
+    "monitor_toolprefix": "xtensa-esp32-elf-",
+    "config_environment" : {
+        "COMPONENT_KCONFIGS" : "/home/caiol/esp/esp-idf/components/efuse/Kconfig;/home/caiol/esp/esp-idf/components/esp32/Kconfig;/home/caiol/esp/esp-idf/components/esp_common/Kconfig;/home/caiol/esp/esp-idf/components/esp_hw_support/Kconfig;/home/caiol/esp/esp-idf/components/esp_system/Kconfig;/home/caiol/esp/esp-idf/components/freertos/Kconfig;/home/caiol/esp/esp-idf/components/hal/Kconfig;/home/caiol/esp/esp-idf/components/log/Kconfig;/home/caiol/esp/esp-idf/components/newlib/Kconfig;/home/caiol/esp/esp-idf/components/spi_flash/Kconfig",
+        "COMPONENT_KCONFIGS_PROJBUILD" : "/home/caiol/esp/esp-idf/components/bootloader/Kconfig.projbuild;/home/caiol/esp/esp-idf/components/esp_rom/Kconfig.projbuild;/home/caiol/esp/esp-idf/components/esptool_py/Kconfig.projbuild;/home/caiol/esp/esp-idf/components/partition_table/Kconfig.projbuild"
+    },
+    "build_components" : [ "bootloader", "bootloader_support", "efuse", "esp32", "esp_common", "esp_hw_support", "esp_rom", "esp_system", "esptool_py", "freertos", "hal", "log", "main", "micro-ecc", "newlib", "partition_table", "soc", "spi_flash", "xtensa", "" ],
+    "build_component_paths" : [ "/home/caiol/esp/esp-idf/components/bootloader", "/home/caiol/esp/esp-idf/components/bootloader_support", "/home/caiol/esp/esp-idf/components/efuse", "/home/caiol/esp/esp-idf/components/esp32", "/home/caiol/esp/esp-idf/components/esp_common", "/home/caiol/esp/esp-idf/components/esp_hw_support", "/home/caiol/esp/esp-idf/components/esp_rom", "/home/caiol/esp/esp-idf/components/esp_system", "/home/caiol/esp/esp-idf/components/esptool_py", "/home/caiol/esp/esp-idf/components/freertos", "/home/caiol/esp/esp-idf/components/hal", "/home/caiol/esp/esp-idf/components/log", "/home/caiol/esp/esp-idf/components/bootloader/subproject/main", "/home/caiol/esp/esp-idf/components/bootloader/subproject/components/micro-ecc", "/home/caiol/esp/esp-idf/components/newlib", "/home/caiol/esp/esp-idf/components/partition_table", "/home/caiol/esp/esp-idf/components/soc", "/home/caiol/esp/esp-idf/components/spi_flash", "/home/caiol/esp/esp-idf/components/xtensa", "" ]
+}
