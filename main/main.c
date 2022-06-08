@@ -20,8 +20,7 @@ void tx_task(void *pvParameter)
 	int packetnum = 0;	// packet counter, we increment per xmission
 	while(1) {
 
-		char radiopacket[64] = "Hello World #";
-		sprintf(radiopacket, "Hello World #%d", packetnum++);
+		char radiopacket[64] = "caio";
 		ESP_LOGI(pcTaskGetName(0), "Sending %s", radiopacket);
   
 		// Send a message!
@@ -42,7 +41,7 @@ void tx_task(void *pvParameter)
 		} else {
 			ESP_LOGE(pcTaskGetName(0), "No reply, is another RFM69 listening?");
 		}
-		vTaskDelay(1000/portTICK_PERIOD_MS);
+		vTaskDelay(2000/portTICK_PERIOD_MS);
 	} // end while
 
 	// never reach here
