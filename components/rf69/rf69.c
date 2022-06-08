@@ -340,13 +340,12 @@ bool init()
 
 	// The following can be changed later by the user if necessary.
 	// Set up default configuration
-	uint8_t syncwords[] = { 0x2d, 0xd4 };
-	setSyncWords(syncwords, sizeof(syncwords)); // Same as RF22's
+	setSyncWords(NULL, 0); // Same as RF22's
 	// Reasonably fast and reliable default speed and modulation
-	setModemConfig(GFSK_Rb250Fd250);
+	setModemConfig(OOK_Rb1Bw1);
 
 	// 3 would be sufficient, but this is the same as RF22's
-	setPreambleLength(4);
+	setPreambleLength(0);
 	// An innocuous ISM frequency, same as RF22's
 	setFrequency(434.0);
 	// No encryption

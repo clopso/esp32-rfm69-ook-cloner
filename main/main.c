@@ -122,9 +122,7 @@ void app_main()
 #endif
 
 	// The encryption key has to be the same as the one in the server
-	uint8_t key[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-	setEncryptionKey(key);
+	setEncryptionKey(NULL);
 
 #if CONFIG_TRANSMITTER
 	xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
