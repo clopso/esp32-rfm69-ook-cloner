@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
 
 #include "rf69.h"
 
@@ -124,9 +125,19 @@ void app_main()
 	setEncryptionKey(NULL);
 
 #if CONFIG_TRANSMITTER
-	xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
+	setTxContinuousMode();
+
+
+	//xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
 #endif
 #if CONFIG_RECEIVER
-	xTaskCreate(&rx_task, "rx_task", 1024*3, NULL, 1, NULL);
+	int level = 0;
+	setRxContinuousMode();
+	while(1){
+		level = gpio_get_level(PIN_DIO2);
+		ESP_LOGI(TAG, "%d", level);
+		vTaskDelay(2);
+	}
+	//xTaskCreate(&rx_task, "rx_task", 1024*3, NULL, 1, NULL);
 #endif
 }
