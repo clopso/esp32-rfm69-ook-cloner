@@ -9,21 +9,35 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include "esp_timer.h"
 
 #include "rf69.h"
 
 #define TAG "MAIN"
 
+/* interruptions */
+
+static inline uint8_t filter_data(void)
+{
+
+	uint8_t i;
+	uint8_t x = gpio_get_level(PIN_DIO2);
+	for (i = 0; i != 32; ++i)
+		x &= gpio_get_level(PIN_DIO2);
+	return x;
+}
+
 #if CONFIG_TRANSMITTER
 void tx_task(void *pvParameter)
 {
 	ESP_LOGI(pcTaskGetName(0), "Start");
-	int packetnum = 0;	// packet counter, we increment per xmission
-	while(1) {
+	int packetnum = 0; // packet counter, we increment per xmission
+	while (1)
+	{
 
 		char radiopacket[64] = "caio";
 		ESP_LOGI(pcTaskGetName(0), "Sending %s", radiopacket);
-  
+
 		// Send a message!
 		send((uint8_t *)radiopacket, strlen(radiopacket));
 		waitPacketSent();
@@ -32,21 +46,27 @@ void tx_task(void *pvParameter)
 		uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];
 		uint8_t len = sizeof(buf);
 
-		if (waitAvailableTimeout(500))	{
-			// Should be a reply message for us now   
-			if (recv(buf, &len)) {
-				ESP_LOGI(pcTaskGetName(0), "Got a reply: %s", (char*)buf);
-			} else {
+		if (waitAvailableTimeout(500))
+		{
+			// Should be a reply message for us now
+			if (recv(buf, &len))
+			{
+				ESP_LOGI(pcTaskGetName(0), "Got a reply: %s", (char *)buf);
+			}
+			else
+			{
 				ESP_LOGE(pcTaskGetName(0), "Receive failed");
 			}
-		} else {
+		}
+		else
+		{
 			ESP_LOGE(pcTaskGetName(0), "No reply, is another RFM69 listening?");
 		}
-		vTaskDelay(2000/portTICK_PERIOD_MS);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
 	} // end while
 
 	// never reach here
-	vTaskDelete( NULL );
+	vTaskDelete(NULL);
 }
 #endif // CONFIG_TRANSMITTER
 
@@ -55,45 +75,56 @@ void rx_task(void *pvParameter)
 {
 	ESP_LOGI(pcTaskGetName(0), "Start");
 
-	while(1) {
+	while (1)
+	{
 
-		if (available()) {
-			// Should be a message for us now	
+		if (available())
+		{
+			// Should be a message for us now
 			uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];
 			uint8_t len = sizeof(buf);
-			if (recv(buf, &len)) {
-				if (!len) continue;
+			if (recv(buf, &len))
+			{
+				if (!len)
+					continue;
 				buf[len] = 0;
-				ESP_LOGI(pcTaskGetName(0), "Received [%d]:%s", len, (char*)buf);
+				ESP_LOGI(pcTaskGetName(0), "Received [%d]:%s", len, (char *)buf);
 				ESP_LOGI(pcTaskGetName(0), "RSSI: %d", lastRssi());
 
-				if (strstr((char *)buf, "Hello World")) {
+				if (strstr((char *)buf, "Hello World"))
+				{
 					// Send a reply!
 					uint8_t data[] = "And hello back to you";
 					send(data, sizeof(data));
 					waitPacketSent();
 					ESP_LOGI(pcTaskGetName(0), "Sent a reply");
 				}
-			} else {
+			}
+			else
+			{
 				ESP_LOGE(pcTaskGetName(0), "Receive failed");
 			} // end recv
-		} // end available
+		}	  // end available
 		vTaskDelay(1);
 	} // end while
 
 	// never reach here
-	vTaskDelete( NULL );
+	vTaskDelete(NULL);
 }
 #endif // CONFIG_RECEIVER
 
 void app_main()
 {
-	if (!init()) {
+	if (!init())
+	{
 		ESP_LOGE(TAG, "RFM69 radio init failed");
-		while (1) { vTaskDelay(1); }
+		while (1)
+		{
+			vTaskDelay(1);
+		}
 	}
 	ESP_LOGI(TAG, "RFM69 radio init OK!");
-  
+
 	float freq;
 #if CONFIG_RF69_FREQ_315
 	freq = 315.0;
@@ -108,16 +139,20 @@ void app_main()
 
 	// Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
 	// No encryption
-	if (!setFrequency(freq)) {
+	if (!setFrequency(freq))
+	{
 		ESP_LOGE(TAG, "setFrequency failed");
-		while (1) { vTaskDelay(1); }
+		while (1)
+		{
+			vTaskDelay(1);
+		}
 	}
 	ESP_LOGI(TAG, "RFM69 radio setFrequency OK!");
 
 #if CONFIG_RF69_POWER_HIGH
 	// If you are using a high power RF69 eg RFM69HW, you *must* set a Tx power with the
 	// ishighpowermodule flag set like this:
-	setTxPower(20, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
+	setTxPower(20, true); // range from 14-20 for power, 2nd arg must be true for 69HCW
 	ESP_LOGW(TAG, "Set TX power high");
 #endif
 
@@ -127,17 +162,30 @@ void app_main()
 #if CONFIG_TRANSMITTER
 	setTxContinuousMode();
 
-
-	//xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
+	// xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
 #endif
 #if CONFIG_RECEIVER
-	int level = 0;
+	uint8_t cur_state;
+	uint8_t pre_state;
+
+	gpio_pad_select_gpio(PIN_INTERRUPTOR);
+	gpio_set_direction(PIN_INTERRUPTOR, GPIO_MODE_INPUT);
+
 	setRxContinuousMode();
-	while(1){
-		level = gpio_get_level(PIN_DIO2);
-		ESP_LOGI(TAG, "%d", level);
-		vTaskDelay(2);
+
+	while (1)
+	{
+		while (gpio_get_level(PIN_INTERRUPTOR))
+		{
+			cur_state = filter_data();
+			pre_state = cur_state;
+			esp_rom_delay_us(4);
+
+			ESP_LOGI(TAG, "%d", cur_state);
+		}
+		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
-	//xTaskCreate(&rx_task, "rx_task", 1024*3, NULL, 1, NULL);
+
+	// xTaskCreate(&rx_task, "rx_task", 1024*3, NULL, 1, NULL);
 #endif
 }

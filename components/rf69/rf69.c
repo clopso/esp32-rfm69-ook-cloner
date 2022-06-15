@@ -339,7 +339,7 @@ bool init()
 	// Set up default configuration
 	setSyncWords(NULL, 0); // Same as RF22's
 	// Reasonably fast and reliable default speed and modulation
-	setModemConfig(OOK_Rb19_2Bw38_4);
+	setModemConfig(OOK_Rb32Bw64);
 
 	// 3 would be sufficient, but this is the same as RF22's
 	setPreambleLength(0);
