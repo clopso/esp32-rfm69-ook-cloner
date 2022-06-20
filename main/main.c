@@ -113,6 +113,22 @@ void rx_task(void *pvParameter)
 }
 #endif // CONFIG_RECEIVER
 
+void delay_us(uint64_t number_of_us)
+{
+	uint64_t microseconds = (uint64_t)esp_timer_get_time();
+	if (number_of_us)
+	{
+		uint64_t total = (microseconds + number_of_us);
+		if (microseconds > total)
+		{
+			while ((uint64_t)esp_timer_get_time() > total)
+				;
+		}
+		while ((uint64_t)esp_timer_get_time() < total)
+			;
+	}
+}
+
 void app_main()
 {
 	if (!init())
@@ -162,11 +178,35 @@ void app_main()
 #if CONFIG_TRANSMITTER
 	setTxContinuousMode();
 
+	const int syncBytes = 0;
+	const int dataBin[] = {1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1};
+
+	/*
+	for (int i = 0; i < syncBytes; i++)
+	{
+		gpio_set_level(PIN_DIO2, 1);
+		delay_us(400);
+		gpio_set_level(PIN_DIO2, 0);
+		delay_us(400);
+	}
+	*/
+	gpio_set_level(PIN_DIO2, 0);
+	delay_us(4000);
+
+	for (int i = 0; i < 196; i++)
+	{
+		gpio_set_level(PIN_DIO2, dataBin[i]);
+		delay_us(400);
+	}
+	gpio_set_level(PIN_DIO2, 0);
+	vTaskDelay(1500 / portTICK_PERIOD_MS);
+
 	// xTaskCreate(&tx_task, "tx_task", 1024*3, NULL, 1, NULL);
 #endif
 #if CONFIG_RECEIVER
 	uint8_t cur_state;
 	uint8_t pre_state;
+	uint8_t valoresArmazenados[512] = {0};
 
 	gpio_pad_select_gpio(PIN_INTERRUPTOR);
 	gpio_set_direction(PIN_INTERRUPTOR, GPIO_MODE_INPUT);
@@ -175,15 +215,21 @@ void app_main()
 
 	while (1)
 	{
-		while (gpio_get_level(PIN_INTERRUPTOR))
+		memset(&valoresArmazenados, 0, sizeof(valoresArmazenados));
+
+		for (int i = 0; i < 511; i++)
 		{
 			cur_state = filter_data();
 			pre_state = cur_state;
-			esp_rom_delay_us(4);
 
-			ESP_LOGI(TAG, "%d", cur_state);
+			valoresArmazenados[i] = cur_state + '0';
+
+			delay_us(400);
 		}
-		vTaskDelay(50 / portTICK_PERIOD_MS);
+
+		ESP_LOGI(TAG, "%s", valoresArmazenados);
+
+		vTaskDelay(600 / portTICK_PERIOD_MS);
 	}
 
 	// xTaskCreate(&rx_task, "rx_task", 1024*3, NULL, 1, NULL);
