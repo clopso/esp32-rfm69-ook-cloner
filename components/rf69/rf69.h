@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 #define PIN_DIO2 27
-#define PIN_INTERRUPTOR 13
 
 //#include <RHGenericSPI.h>
 //#include <RHSPIDriver.h>
