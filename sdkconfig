@@ -135,8 +135,8 @@ CONFIG_PARTITION_TABLE_MD5=y
 #
 # Application Configuration
 #
-# CONFIG_RECEIVER is not set
-CONFIG_TRANSMITTER=y
+CONFIG_RECEIVER=y
+# CONFIG_TRANSMITTER is not set
 # end of Application Configuration
 
 #
