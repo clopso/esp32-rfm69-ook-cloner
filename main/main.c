@@ -42,28 +42,32 @@ void tx_task(void *pvParameter)
 {
 	setTxContinuousMode();
 
-	static const int syncBytes = 12;
-	static const int dataBin[] = {1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1};
+	static const int repeat = 20;
+	static const int syncBytes = 0;
+	static const char dataBin[] = {"1001011011001011011011011001001011011001011001001001011011001001011011001011001011001011001"};
 
 	while (1)
 	{
-
-		for (int i = 0; i < syncBytes; i++)
+		for (int i = 0; i < repeat; i++)
 		{
-			gpio_set_level(PIN_DIO2, 1);
-			delay_us(400);
+			for (int j = 0; j < syncBytes; j++)
+			{
+				gpio_set_level(PIN_DIO2, 1);
+				delay_us(400);
+				gpio_set_level(PIN_DIO2, 0);
+				delay_us(400);
+			}
 			gpio_set_level(PIN_DIO2, 0);
-			delay_us(400);
-		}
-		gpio_set_level(PIN_DIO2, 0);
-		delay_us(4000);
 
-		for (int i = 0; i < 196; i++)
-		{
-			gpio_set_level(PIN_DIO2, dataBin[i]);
-			delay_us(400);
+			for (int k = 0; k < strlen(dataBin); k++)
+			{
+				gpio_set_level(PIN_DIO2, dataBin[k] - '0');
+				delay_us(400);
+			}
+			gpio_set_level(PIN_DIO2, 0);
+			delay_us(4000);
+
 		}
-		gpio_set_level(PIN_DIO2, 0);
 		vTaskDelay(1500 / portTICK_PERIOD_MS);
 	}
 }
@@ -110,7 +114,7 @@ void app_main()
 
 	// Set frequency
 	float freq;
-	freq = 433.0;
+	freq = 434.0;
 	ESP_LOGW(TAG, "Set frequency to %.1fMHz", freq);
 
 	// Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
