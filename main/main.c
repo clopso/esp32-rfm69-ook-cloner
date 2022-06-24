@@ -44,7 +44,7 @@ void tx_task(void *pvParameter)
 
 	static const int repeat = 20;
 	static const int syncBytes = 0;
-	static const char dataBin[] = {"1001011011001011011011011001001011011001011001001001011011001001011011001011001011001011001"};
+	static const char dataBin[] = {"1001011011011001011001011011011001011011011001011011001011001011001001011011001011001"};
 
 	while (1)
 	{
@@ -114,7 +114,7 @@ void app_main()
 
 	// Set frequency
 	float freq;
-	freq = 434.0;
+	freq = 433.92;
 	ESP_LOGW(TAG, "Set frequency to %.1fMHz", freq);
 
 	// Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
