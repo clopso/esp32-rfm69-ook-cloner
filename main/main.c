@@ -15,7 +15,6 @@
 #define ESP_INTR_FLAG_DEFAULT 0
 #define DATA_IO_PIN 27
 
-static xQueueHandle gpio_evt_queue = NULL;
 // static rmt_rx_channel = RMT_CHANNEL_1;
 
 /* Global function */
@@ -50,37 +49,51 @@ void tx_task(void *pvParameter)
 {
     setTxContinuousMode();
 
-    static const int repeat = 20;
-    static const int syncBytes = 0;
+    esp_err_t err;
+
+    rmt_config_t rmt_tx = RMT_DEFAULT_CONFIG_TX(DATA_IO_PIN, 0);
     static const char dataBin[] = {
         "1001011011001011011011011001001011011001011001001001011011001001011011"
         "001011001011001"};
+    rmt_item32_t tx_data[50];
+    int j = 0, i = 0;
+
+    for (i = 0; i < strlen(dataBin); i++)
+    {
+        (tx_data + i)->duration0 = 400;
+        (tx_data + i)->level0 = dataBin[j++] - '0';
+
+        (tx_data + i)->duration1 = 400;
+        (tx_data + i)->level1 = dataBin[j++] - '0';
+    }
+
+    // i++;
+    // (tx_data + i)->duration0 = 0;
+    // (tx_data + i)->level0 = 1;
+    // (tx_data + i)->duration1 = 0;
+    // (tx_data + i)->level1 = 0;
+
+    rmt_config(&rmt_tx);
+    rmt_driver_install(rmt_tx.channel, 1000, 0);
+    rmt_tx_start(rmt_tx.channel, 1);
 
     gpio_set_level(PIN_DIO2, 0);
 
     while (1)
     {
         ESP_LOGE(TAG, "Send TX!");
-
-        for (int i = 0; i < repeat; i++)
+        for (int i = 0; i < 10; i++)
         {
-            for (int j = 0; j < syncBytes; j++)
-            {
-                gpio_set_level(PIN_DIO2, 1);
-                delay_us(400);
-                gpio_set_level(PIN_DIO2, 0);
-                delay_us(400);
-            }
-            gpio_set_level(PIN_DIO2, 0);
+            rmt_write_items(rmt_tx.channel, tx_data,
+                            sizeof(tx_data) / sizeof(tx_data[0]), true);
 
-            for (int k = 0; k < strlen(dataBin); k++)
-            {
-                gpio_set_level(PIN_DIO2, dataBin[k] - '0');
-                delay_us(400);
-            }
-            gpio_set_level(PIN_DIO2, 0);
-            vTaskDelay(9 / portTICK_PERIOD_MS);
+            err = rmt_wait_tx_done(rmt_tx.channel, 1000);
+
+            printf((err != ESP_OK) ? "Failure!\n" : "Success!\n");
+            
+            delay_us(9000);
         }
+
         vTaskDelay(1500 / portTICK_PERIOD_MS);
     }
 }
@@ -99,13 +112,14 @@ void rx_task(void *pvParameter)
     setRxContinuousMode();
 
     rmt_config_t rmt_rx = {.channel = 0,
-                           .gpio_num = 27,
+                           .gpio_num = DATA_IO_PIN,
                            .clk_div = 80, // 1MHz
                            .mem_block_num = 1,
                            .rmt_mode = RMT_MODE_RX,
                            .rx_config.filter_en = true,
                            .rx_config.filter_ticks_thresh = 100,
-                           .rx_config.idle_threshold = 9500};
+                           .rx_config.idle_threshold =
+                               9500}; // rmt receiver configurations
 
     rmt_config(&rmt_rx);
     rmt_driver_install(rmt_rx.channel, 1000, 0);
@@ -175,7 +189,7 @@ void app_main()
 
     // Set frequency
     float freq;
-    freq = 868.0;
+    freq = 433.0;
     ESP_LOGW(TAG, "Set frequency to %.1fMHz", freq);
 
     // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for
