@@ -14,12 +14,15 @@
 #define PIN_DCLK_INTERRUPT 15
 #define ESP_INTR_FLAG_DEFAULT 0
 #define DATA_IO_PIN 27
+#define PIN_LED 26
+#define PIN_SWITCH 32
 
 /* Global function */
 
 rmt_item32_t dadosRF[512];
 size_t dadosRF_size = 0;
 char dadosRF_binario[256];
+uint8_t install_tx_rmt = 0, install_rx_rmt = 0;
 
 static inline uint8_t filter_data(void)
 {
@@ -48,6 +51,8 @@ void delay_us(uint64_t number_of_us)
 
 void tx_task(void *pvParameter)
 {
+
+    gpio_set_level(PIN_LED, 0);
     setTxContinuousMode();
 
     esp_err_t err;
@@ -55,28 +60,31 @@ void tx_task(void *pvParameter)
     rmt_config_t rmt_tx = RMT_DEFAULT_CONFIG_TX(DATA_IO_PIN, 1);
 
     rmt_config(&rmt_tx);
-    rmt_driver_install(rmt_tx.channel, 1000, 0);
+
+    if (install_tx_rmt == 0)
+    {
+        rmt_driver_install(rmt_tx.channel, 1000, 0);
+        install_tx_rmt++;
+    }
+
     rmt_tx_start(rmt_tx.channel, 1);
 
     gpio_set_level(PIN_DIO2, 0);
 
-    while (1)
+    ESP_LOGE(TAG, "Send TX!");
+    for (int i = 0; i < 10; i++)
     {
-        ESP_LOGE(TAG, "Send TX!");
-        for (int i = 0; i < 10; i++)
-        {
-            rmt_write_items(rmt_tx.channel, dadosRF,
-                            sizeof(dadosRF) / sizeof(dadosRF[0]), true);
+        rmt_write_items(rmt_tx.channel, dadosRF,
+                        sizeof(dadosRF) / sizeof(dadosRF[0]), true);
 
-            err = rmt_wait_tx_done(rmt_tx.channel, 1000);
+        err = rmt_wait_tx_done(rmt_tx.channel, 1000);
 
-            printf((err != ESP_OK) ? "Failure!\n" : "Success!\n");
+        printf((err != ESP_OK) ? "Failure!\n" : "Success!\n");
 
-            delay_us(9000);
-        }
-
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        delay_us(9000);
     }
+    gpio_set_level(PIN_LED, 1);
+    vTaskDelete(NULL);
 }
 
 #if CONFIG_RECEIVER
@@ -97,7 +105,13 @@ void rx_task(void *pvParameter)
                                9500}; // rmt receiver configurations
 
     rmt_config(&rmt_rx);
-    rmt_driver_install(rmt_rx.channel, 1000, 0);
+
+    if (install_rx_rmt == 0)
+    {
+        rmt_driver_install(rmt_rx.channel, 1000, 0);
+        install_rx_rmt++;
+    }
+
     RingbufHandle_t rb = NULL;
     rmt_get_ringbuf_handle(rmt_rx.channel, &rb);
     rmt_rx_start(rmt_rx.channel, 1);
@@ -148,14 +162,26 @@ void rx_task(void *pvParameter)
                 }
                 j++;
             }
+            gpio_set_level(PIN_LED, 1);
+
             ESP_LOGE(TAG, "%ld", (long)duration);
             vRingbufferReturnItem(rb, (void *)item);
+
             break;
         }
     }
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    xTaskCreate(&tx_task, "tx_task", 1024 * 3, NULL, configMAX_PRIORITIES,
-                NULL);
+
+    while (1)
+    {
+        if (gpio_get_level(PIN_SWITCH))
+        {
+            xTaskCreate(&tx_task, "tx_task", 1024 * 3, NULL,
+                        configMAX_PRIORITIES, NULL);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+    }
+
     vTaskDelete(NULL);
 }
 
@@ -163,7 +189,14 @@ void rx_task(void *pvParameter)
 
 void app_main()
 {
+    gpio_pad_select_gpio(PIN_LED);
+    gpio_set_direction(PIN_LED, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(PIN_SWITCH);
+    gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
+    gpio_set_level(PIN_LED, 0);
 
+    gpio_pulldown_en(PIN_SWITCH);
+    gpio_pullup_dis(PIN_SWITCH);
     // Initialize
     if (!init())
     {
