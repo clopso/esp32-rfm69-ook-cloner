@@ -147,8 +147,8 @@ CONFIG_RF69_POWER_HIGH=y
 #
 # Application Configuration
 #
-# CONFIG_RECEIVER is not set
-CONFIG_TRANSMITTER=y
+CONFIG_RECEIVER=y
+# CONFIG_TRANSMITTER is not set
 # end of Application Configuration
 
 #

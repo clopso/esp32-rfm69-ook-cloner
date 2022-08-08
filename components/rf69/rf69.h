@@ -955,6 +955,16 @@ bool setSleep();
 /// Should not need to be called by user code.
 // void           handleInterrupt();
 
+
+void rfm69_write_bitrate(uint16_t x);
+void rfm69_write_ook_peak(uint8_t x);
+void rfm69_write_ook_fix(uint8_t x);
+void rfm69_write_pa_level(uint8_t x);
+uint8_t rfm69_read_lna();
+void rfm69_write_lna(uint8_t x);
+void rfm69_write_rx_bw(uint8_t x);
+void rfm69_write_rssi_threshold(uint8_t x);
+
 /// Low level function to read the FIFO and put the received data into the receive buffer
 /// Should not need to be called by user code.
 void readFifo();

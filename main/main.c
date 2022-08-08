@@ -15,9 +15,11 @@
 #define ESP_INTR_FLAG_DEFAULT 0
 #define DATA_IO_PIN 27
 
-// static rmt_rx_channel = RMT_CHANNEL_1;
-
 /* Global function */
+
+rmt_item32_t dadosRF[512];
+size_t dadosRF_size = 0;
+char dadosRF_binario[256];
 
 static inline uint8_t filter_data(void)
 {
@@ -44,34 +46,13 @@ void delay_us(uint64_t number_of_us)
     }
 }
 
-#if CONFIG_TRANSMITTER
 void tx_task(void *pvParameter)
 {
     setTxContinuousMode();
 
     esp_err_t err;
 
-    rmt_config_t rmt_tx = RMT_DEFAULT_CONFIG_TX(DATA_IO_PIN, 0);
-    static const char dataBin[] = {
-        "1001011011001011011011011001001011011001011001001001011011001001011011"
-        "001011001011001"};
-    rmt_item32_t tx_data[50];
-    int j = 0, i = 0;
-
-    for (i = 0; i < strlen(dataBin); i++)
-    {
-        (tx_data + i)->duration0 = 400;
-        (tx_data + i)->level0 = dataBin[j++] - '0';
-
-        (tx_data + i)->duration1 = 400;
-        (tx_data + i)->level1 = dataBin[j++] - '0';
-    }
-
-    // i++;
-    // (tx_data + i)->duration0 = 0;
-    // (tx_data + i)->level0 = 1;
-    // (tx_data + i)->duration1 = 0;
-    // (tx_data + i)->level1 = 0;
+    rmt_config_t rmt_tx = RMT_DEFAULT_CONFIG_TX(DATA_IO_PIN, 1);
 
     rmt_config(&rmt_tx);
     rmt_driver_install(rmt_tx.channel, 1000, 0);
@@ -84,27 +65,21 @@ void tx_task(void *pvParameter)
         ESP_LOGE(TAG, "Send TX!");
         for (int i = 0; i < 10; i++)
         {
-            rmt_write_items(rmt_tx.channel, tx_data,
-                            sizeof(tx_data) / sizeof(tx_data[0]), true);
+            rmt_write_items(rmt_tx.channel, dadosRF,
+                            sizeof(dadosRF) / sizeof(dadosRF[0]), true);
 
             err = rmt_wait_tx_done(rmt_tx.channel, 1000);
 
             printf((err != ESP_OK) ? "Failure!\n" : "Success!\n");
-            
+
             delay_us(9000);
         }
 
-        vTaskDelay(1500 / portTICK_PERIOD_MS);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
-#endif // CONFIG_TRANSMITTER
 
 #if CONFIG_RECEIVER
-static void IRAM_ATTR gpio_isr_handler(void *arg)
-{
-    uint32_t gpio_num = (uint32_t)arg;
-    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
-}
 
 void rx_task(void *pvParameter)
 {
@@ -127,48 +102,60 @@ void rx_task(void *pvParameter)
     rmt_get_ringbuf_handle(rmt_rx.channel, &rb);
     rmt_rx_start(rmt_rx.channel, 1);
 
-    while (rb)
+    while (1)
     {
+        int j = 0;
+        uint64_t duration = 0, counter = 0;
         size_t rx_size = 0;
         rmt_item32_t *item =
             (rmt_item32_t *)xRingbufferReceive(rb, &rx_size, 1000);
         if (item)
         {
-            for (int i = 0; i < rx_size >> 2; i++)
+            for (int i = 0; i < rx_size; i++)
             {
-                // printf("%d:%dus %d:%dus\n", (item+i)->level0,
-                // (item+i)->duration0, (item+i)->level1, (item+i)->duration1);
-                if (((item + i)->duration0) >= 1000)
+                if ((item + i)->duration0 > 2000 ||
+                    (item + i)->duration0 < 200 ||
+                    (item + i)->duration1 > 2000 || (item + i)->duration1 < 200)
                 {
-                    printf("  fim\n");
+                    continue;
+                }
+                duration += (item + i)->duration0;
+                counter++;
+                duration += (item + i)->duration1;
+                counter++;
+            }
+
+            if (counter != 0)
+            {
+                duration /= counter;
+            }
+
+            for (int i = 0; i < rx_size; i++)
+            {
+                if ((item + i)->duration0 >= duration * 2 && duration != 0)
+                {
                     break;
                 }
-
-                if (((item + i)->duration0) >= 700)
+                if ((item + i)->duration0 >= duration / 2)
                 {
-                    printf("00");
+                    dadosRF[j].duration0 = (item + i)->duration0;
+                    dadosRF[j].level0 = (item + i)->level0;
                 }
-                else
+                if ((item + i)->duration1 >= duration / 2)
                 {
-                    printf("0");
+                    dadosRF[j].duration1 = (item + i)->duration1;
+                    dadosRF[j].level1 = (item + i)->level1;
                 }
-
-                if (((item + i)->duration1) >= 700)
-                {
-                    printf("11");
-                }
-                else
-                {
-                    printf("1");
-                }
+                j++;
             }
+            ESP_LOGE(TAG, "%ld", (long)duration);
             vRingbufferReturnItem(rb, (void *)item);
-        }
-        else
-        {
             break;
         }
     }
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    xTaskCreate(&tx_task, "tx_task", 1024 * 3, NULL, configMAX_PRIORITIES,
+                NULL);
     vTaskDelete(NULL);
 }
 
@@ -176,6 +163,7 @@ void rx_task(void *pvParameter)
 
 void app_main()
 {
+
     // Initialize
     if (!init())
     {
@@ -187,9 +175,11 @@ void app_main()
     }
     ESP_LOGI(TAG, "RFM69 radio init OK!");
 
+    rfm69_write_bitrate((uint16_t)(32000.0 / 32.0));
+
     // Set frequency
     float freq;
-    freq = 433.0;
+    freq = 433.90;
     ESP_LOGW(TAG, "Set frequency to %.1fMHz", freq);
 
     // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for
@@ -203,6 +193,17 @@ void app_main()
         }
     }
     ESP_LOGI(TAG, "RFM69 radio setFrequency OK!");
+
+    rfm69_write_ook_peak(1 << 6);
+    rfm69_write_ook_fix(70);
+    rfm69_write_pa_level((1 << 7) | (0x10));
+
+    uint8_t x;
+    x = rfm69_read_lna();
+    x = (1 << 7) | (1 << 0);
+    rfm69_write_lna(x);
+    rfm69_write_rx_bw((2 << 5) | (1 << 3) | (1 << 0));
+    rfm69_write_rssi_threshold(35);
 
 #if CONFIG_RF69_POWER_HIGH
     // If you are using a high power RF69 eg RFM69HW, you *must* set a Tx power
@@ -220,24 +221,9 @@ void app_main()
                 NULL);
 #endif // CONFIG_TRANSMITTER
 #if CONFIG_RECEIVER
-    gpio_config_t in_conf = {
-        .intr_type = GPIO_INTR_POSEDGE, // interrupt of rising edge
-        .pin_bit_mask =
-            (1ULL
-             << PIN_DCLK_INTERRUPT), // bit mask of the pins, use GPIO15 here
-        .mode = GPIO_MODE_INPUT,     // set as input mode
-        .pull_up_en = 0,             // disable pull-up mode
-        .pull_down_en = 1,           // enable pull-down mode
-    };
-    gpio_config(&in_conf);
-    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-
     xTaskCreate(&rx_task, "rx_task", 1024 * 3, NULL, configMAX_PRIORITIES,
                 NULL);
 
-    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
-    gpio_isr_handler_add(PIN_DCLK_INTERRUPT, gpio_isr_handler,
-                         (void *)DATA_IO_PIN);
     printf("Minimum free heap size: %d bytes\n",
            esp_get_minimum_free_heap_size());
 
