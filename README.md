@@ -31,8 +31,13 @@ idf.py flash
 |MOSI|--|GPIO23|
 |CSN|--|GPIO5|
 |RESET|--|GPIO4|
+|G0|--|GPIO2|
+|G2|--|GPIO27|
 |GND|--|GND|
 |VCC|--|3.3V|
+|LED|--|GPIO26|
+|RX BTN|--|GPIO32|
+|TX BTN|--|GPIO35|
 
 ## Software to help
 
@@ -40,8 +45,16 @@ idf.py flash
 
 [URH](https://github.com/jopohl/urh)
 
+## Hardware to help
+
+[RTL-SDR](https://www.rtl-sdr.com/buy-rtl-sdr-dvb-t-dongles/)
+
+[DSCope Oscilloscope](https://www.dreamsourcelab.com/product/dscope-series/)
+
 ### Ref Links
 
 [RF 433.92MHz OOK frame cloner](https://github.com/texane/ooklone)
 
 [OOK transceiver library](https://github.com/kobuki/RFM69OOK)
+
+[RMT docs](https://docs.espressif.com/projects/esp-idf/en/v4.2.3/esp32/api-reference/peripherals/rmt.html)
