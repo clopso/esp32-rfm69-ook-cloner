@@ -10,34 +10,41 @@
 #include "driver/rmt.h"
 
 #include "rf69.h"
+#include "button.h"
 
 #define TAG "MAIN"
 #define PIN_DCLK_INTERRUPT 15
 #define ESP_INTR_FLAG_DEFAULT 0
 #define DATA_IO_PIN 27
 #define PIN_LED 26
-#define PIN_SWITCH 32
+#define PIN_RX_BUTTON 32
+#define PIN_TX_BUTTON 35
+
 
 /* Global function */
+void rx_task(void *pvParameter);
+void tx_task(void *pvParameter);
 
 rmt_item32_t dadosRF[512];
 nvs_handle nvs_backup_handle;
 size_t dadosRF_size = 0;
 
-void save_struct(){
-	esp_err_t err;
-    size_t required_size = sizeof(dadosRF);
-
-    err = nvs_open("storage", NVS_READWRITE, &nvs_backup_handle);
-
-    err = nvs_set_blob(nvs_backup_handle, "nvs_struct", (const void*)&dadosRF, required_size);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-
-    printf("Committing updates in NVS ... ");
-    err = nvs_commit(nvs_backup_handle);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-    nvs_close(nvs_backup_handle);
-
+void polling(void *pvParameter){
+	while(1){
+	    vTaskDelay(pdMS_TO_TICKS(20));
+	    if(gpio_get_level(PIN_TX_BUTTON))
+	    {
+	    	ESP_LOGE("Botao", "TX");
+	        xTaskCreate(tx_task, "tx_task", 4096, NULL, 20, NULL);
+		    vTaskDelay(pdMS_TO_TICKS(2000));
+	    }
+	    else if(gpio_get_level(PIN_RX_BUTTON))
+	    {
+	    	ESP_LOGE("Botao", "RX");
+	        xTaskCreate(rx_task, "rx_task", 4096, NULL, 20, NULL);
+		    vTaskDelay(pdMS_TO_TICKS(1000));
+	    }
+	}
 }
 
 void delay_us(uint64_t number_of_us)
@@ -59,6 +66,12 @@ void delay_us(uint64_t number_of_us)
 void tx_task(void *pvParameter)
 {
     gpio_set_level(PIN_LED, 0);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(PIN_LED, 1);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(PIN_LED, 0);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(PIN_LED, 1);
     setTxContinuousMode();
 
     esp_err_t err;
@@ -80,7 +93,7 @@ void tx_task(void *pvParameter)
         printf((err != ESP_OK) ? "Failure!\n" : "Success!\n");
         delay_us(9000);
     }
-    gpio_set_level(PIN_LED, 1);
+    gpio_set_level(PIN_LED, 0);
     rmt_driver_uninstall(rmt_tx.channel);
     vTaskDelete(NULL);
 }
@@ -105,6 +118,14 @@ void rx_task(void *pvParameter)
     RingbufHandle_t rb = NULL;
     rmt_get_ringbuf_handle(rmt_rx.channel, &rb);
     rmt_rx_start(rmt_rx.channel, 1);
+
+    gpio_set_level(PIN_LED, 0);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(PIN_LED, 1);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(PIN_LED, 0);
+
+    memset(dadosRF, 0, sizeof(dadosRF));
 
     while (1)
     {
@@ -168,55 +189,26 @@ void app_main()
 {
     gpio_pad_select_gpio(PIN_LED);
     gpio_set_direction(PIN_LED, GPIO_MODE_OUTPUT);
-    gpio_pad_select_gpio(PIN_SWITCH);
-    gpio_set_direction(PIN_SWITCH, GPIO_MODE_INPUT);
     gpio_set_level(PIN_LED, 0);
 
-    gpio_pulldown_en(PIN_SWITCH);
-    gpio_pullup_dis(PIN_SWITCH);
+    gpio_config_t io_rx_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .pin_bit_mask = (1ULL<<PIN_RX_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 0,
+        .pull_down_en = 1
+    };
+    gpio_config(&io_rx_conf);
 
-    // Initialize NVS
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK( err );
+    gpio_config_t io_tx_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .pin_bit_mask = (1ULL<<PIN_TX_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 0,
+        .pull_down_en = 1
+    };
+    gpio_config(&io_tx_conf);
 
-    err = nvs_open("storage", NVS_READWRITE, &nvs_backup_handle);
-    if (err != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-    } else {
-        printf("Done\n");
-
-        // Read
-        printf("Reading string from NVS ... ");
-
-        size_t required_size;
-        err = nvs_get_blob(nvs_backup_handle, "nvs_struct", NULL, &required_size );
-        err = nvs_get_blob(nvs_backup_handle, "nvs_struct", (void *)&dadosRF, &required_size);
-        switch (err) {
-            case ESP_OK:
-                printf("Done\n\n");
-                printf("Frequency = %s\n\n", dadosRF);
-                break;
-            case ESP_ERR_NVS_NOT_FOUND:
-                printf("The value is not initialized yet!\n");
-                required_size = sizeof(dadosRF);
-                memset(dadosRF, 0, required_size);
-                break;
-            default :
-                printf("Error (%s) reading!\n", esp_err_to_name(err));
-        }
-
-        err = nvs_set_blob(nvs_backup_handle, "nvs_struct", (const void*)&dadosRF, required_size);
-        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-
-        printf("Committing updates in NVS ... ");
-        err = nvs_commit(nvs_backup_handle);
-        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-        nvs_close(nvs_backup_handle);
-    }
 
     // Initialize
     if (!init())
@@ -270,16 +262,5 @@ void app_main()
     // Deactivating encryption key
     setEncryptionKey(NULL);
 
-#if CONFIG_TRANSMITTER
-    xTaskCreate(&tx_task, "tx_task", 1024 * 3, NULL, configMAX_PRIORITIES,
-                NULL);
-#endif // CONFIG_TRANSMITTER
-#if CONFIG_RECEIVER
-    xTaskCreate(&rx_task, "rx_task", 1024 * 3, NULL, configMAX_PRIORITIES,
-                NULL);
-
-    printf("Minimum free heap size: %d bytes\n",
-           esp_get_minimum_free_heap_size());
-
-#endif // CONFIG_RECEIVER
+    xTaskCreate(polling, "polling", 2048, NULL, 1, NULL);
 }
