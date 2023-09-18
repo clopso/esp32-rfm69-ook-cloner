@@ -1,8 +1,8 @@
 # ESP32 - RFM69
 
+OOK Cloner with ESP32 and RFM69
 
-
-## Installation (Original)
+## Installation (Components)
 
 ```Shell
 git clone https://github.com/nopnop2002/esp-idf-rf69
@@ -12,7 +12,7 @@ idf.py menuconfig
 idf.py flash
 ```
 
-## Installation (Modified)
+## Installation (Cloner)
 
 ```Shell
 git clone https://github.com/clopso/RFM69.git
@@ -21,6 +21,10 @@ idf.py set-target {esp32/esp32s2/esp32s3/esp32c3}
 idf.py menuconfig
 idf.py flash
 ```
+
+## Photos
+
+![Breadboard](files/breadboard.jpg)
 
 ## Wirering
 
@@ -38,6 +42,8 @@ idf.py flash
 |LED|--|GPIO26|
 |RX BTN|--|GPIO32|
 |TX BTN|--|GPIO35|
+
+##
 
 ## Software to help
 
