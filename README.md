@@ -1,6 +1,6 @@
 # ESP32 - RFM69
 
-OOK Cloner with ESP32 and RFM69
+OOK Cloner with ESP32 and RFM69, working with 315MHz, 443MHz and 915MHz
 
 ## Installation (Components)
 
