@@ -16,7 +16,7 @@ idf.py flash
 
 ```Shell
 git clone https://github.com/clopso/esp32-rfm69-ook-cloner.git
-cd RFM69
+cd esp32-rfm69-ook-cloner
 idf.py set-target {esp32/esp32s2/esp32s3/esp32c3}
 idf.py menuconfig
 idf.py flash
