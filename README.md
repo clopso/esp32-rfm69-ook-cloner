@@ -15,7 +15,7 @@ idf.py flash
 ## Installation (Cloner)
 
 ```Shell
-git clone https://github.com/clopso/RFM69.git
+git clone https://github.com/clopso/esp32-rfm69-ook-cloner.git
 cd RFM69
 idf.py set-target {esp32/esp32s2/esp32s3/esp32c3}
 idf.py menuconfig
